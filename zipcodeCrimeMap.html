@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  </head>
+  <body>
+    <form>
+        <input id='zipcodeInput' type = 'text' placeholder='Enter Zipcode/Street Name'>
+        <input id='submitButton' type = 'submit'>
+    </form>
+
+    <img id='map' src= 'https://maps.googleapis.com/maps/api/staticmap?center=austin&zoom=13&size=400x400&key=AIzaSyBgLWf4Gf3NVAUUeMUxvxAIJUgvEueCDcc'>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+
+    <script>
+      var addressArray = [];
+      //Retrieves all addresses and formats them without BLOCK and whitespaces while assigning them to the addressArray variable.
+      $.ajax({
+        method: 'GET',
+        url:'https://data.austintexas.gov/resource/rkrg-9tez.json',
+        success: function(data) {
+          addressArray.push(data.map(function(element) {
+            return element.address.replace("BLOCK ", "").replace(/ /g, "%20");
+          }));
+        }
+      })
+      //formats addressArray to be used with Google Maps Static API for markers
+      function addressToMarker(array) {
+        var results = "";
+
+        for(var i = 0; i < 10; i++) {
+          results += 'marker=color:red%7C' + array[i] + '&';
+        }
+        return results;
+      }
+
+      function addressArrayWithZip() {
+                // Changes XML to JSON
+        function xmlToJson(xml) {
+
+          // Create the return object
+          var obj = {};
+
+          if (xml.nodeType == 1) { // element
+            // do attributes
+            if (xml.attributes.length > 0) {
+            obj["@attributes"] = {};
+              for (var j = 0; j < xml.attributes.length; j++) {
+                var attribute = xml.attributes.item(j);
+                obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+              }
+            }
+          } else if (xml.nodeType == 3) { // text
+            obj = xml.nodeValue;
+          }
+
+          // do children
+          if (xml.hasChildNodes()) {
+            for(var i = 0; i < xml.childNodes.length; i++) {
+              var item = xml.childNodes.item(i);
+              var nodeName = item.nodeName;
+              if (typeof(obj[nodeName]) == "undefined") {
+                obj[nodeName] = xmlToJson(item);
+              } else {
+                if (typeof(obj[nodeName].push) == "undefined") {
+                  var old = obj[nodeName];
+                  obj[nodeName] = [];
+                  obj[nodeName].push(old);
+                }
+                obj[nodeName].push(xmlToJson(item));
+              }
+            }
+          }
+          return obj;
+        };
+
+        for(var i = 0; i < addressArray.length; i += 5) {
+          var address = addressArray[i];
+          $.ajax({
+            method: 'GET',
+            url: 'http://production.shippingapis.com/ShippingAPI.dll?API=ZipCodeLookup&XML=<ZipCodeLookupRequest USERID="803DELTA7818"><Address ID="0"><FirmName>DHV, LLC.</FirmName><Address1></Address1><Address2>' + address[i] + '</Address2><City>Austin</City><State>TX</State></Address><Address ID="1"><FirmName>DHV, LLC.</FirmName><Address1></Address1><Address2>' + address[i+1] + '</Address2><City>Austin</City><State>TX</State></Address><Address ID="2"><FirmName>DHV, LLC.</FirmName><Address1></Address1><Address2>' + address[i+2] + '</Address2><City>Austin</City><State>TX</State></Address><Address ID="3"><FirmName>DHV, LLC.</FirmName><Address1></Address1><Address2>' + address[i+3] + '</Address2><City>Austin</City><State>TX</State></Address><Address ID="4"><FirmName>DHV, LLC.</FirmName><Address1></Address1><Address2>' + address[i+4] + '</Address2><City>Austin</City><State>TX</State></Address></ZipCodeLookupRequest>',
+            success: function(data) {
+              addressArray[i] += '%20' +xmlToJson(data.ZipCodeLookupResponse.Address.Zip5['#text']);
+              addressArray[i+1] += '%20' +xmlToJson(data.ZipCodeLookupResponse.Address.Zip5['#text']);
+              addressArray[i+2] += '%20' +xmlToJson(data.ZipCodeLookupResponse.Address.Zip5['#text']);
+              addressArray[i+3] += '%20' +xmlToJson(data.ZipCodeLookupResponse.Address.Zip5['#text']);
+              addressArray[i+4] += '%20' +xmlToJson(data.ZipCodeLookupResponse.Address.Zip5['#text']);
+            }
+          });
+        }
+      };
+
+      $('submitButton').on('click', function (event) {
+        console.log("Button Clicked")
+        event.preventDefault();
+
+        var zipcode = $('#zipcodeInput').val();
+        console.log("Zipcode: " + zipcode);
+        var markerString = addressToMarker(addressArray);
+        console.log("Marker: " + markerString);
+
+        $('#map').attr('src', 'https://maps.googleapis.com/maps/api/staticmap?center="' + zipcode + '&zoom=13&size=400x400&' + markerString + 'key=AIzaSyBgLWf4Gf3NVAUUeMUxvxAIJUgvEueCDcc')
+
+        $('#zipcodeInput').val("");
+      })
+    </script>
+  </body>
+</html>
